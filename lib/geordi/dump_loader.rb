@@ -15,37 +15,38 @@ class DumpLoader
     File.join(user_dir, 'dumps')
   end
 
-  def db_console_command
-    if File.exists?("script/dbconsole")
-      "script/dbconsole -p"
-    else
-      "rails dbconsole -p"
-    end
-  end
-
-  def source_command
+  def development_database_config
     require 'yaml'
 
-    config = YAML::load(ERB.new(File.read('config/database.yml')).result)
-    db_adapter = config['development']['adapter']
-
-    (db_adapter =~ /postgres/) ? '\i ' : '\. ' # (mysql)
+    @config ||= YAML::load(ERB.new(File.read('config/database.yml')).result)
+    @config['development']
+  end
+  alias_method :config, :development_database_config
+  
+  def mysql_command
+    command = 'mysql --silent'
+    command << ' -p' << config['password']
+    command << ' -u' << config['username']
+    command << ' --default-character-set=utf8'
+    command << ' ' << config['database']
+    command << ' < ' << dump_file
+  end
+  alias_method :mysql2_command, :mysql_command
+  
+  def postgresql_command
+    command = 'pg_restore --no-owner --clean'
+    command << ' --username=' << config['username']
+    command << ' --host=' << config['host']
+    command << ' --dbname=' << config['database']
+    command << ' ' << dump_file
   end
 
-  def source_dump(dump)
-    require 'open3'
-    output_buffer = StringIO.new
-    Open3.popen3(db_console_command) do |stdin, stdout, stderr|
-      stdin.puts(source_command + dump + ';')
-      stdin.close
-      output_buffer.write stdout.read
-      output_buffer.write stderr.read
-    end
-    output_and_errors = output_buffer.string.split("\n")
-    output = output_and_errors.reject{ |line| line =~ /^ERROR / }
-    errors = output_and_errors.select{ |line| line =~ /^ERROR / }
-
-    [output, errors]
+  def source_dump!
+    source_command = send("#{config['adapter']}_command")
+    output = `#{source_command}`
+      
+    # return [normal lines, error lines]
+    output.split($/).partition { |line| line !~ /^ERROR / }
   end
 
   def choose_dump_file
@@ -57,8 +58,8 @@ class DumpLoader
     end
   end
 
-  def get_dump_file
-    if @argv[0] && File.exists?(@argv[0])
+  def dump_file
+    @dump_file ||= if @argv[0] && File.exists?(@argv[0])
       @argv[0]
     else
       choose_dump_file
@@ -70,22 +71,18 @@ class DumpLoader
   end
 
   def execute
-    dump_to_load = get_dump_file
+    puts_info "Sourcing #{dump_file} into #{config['database']} db ..."
 
-    puts_info
-    puts_info "sourcing #{dump_to_load} into db ..."
+    output, errors = source_dump!
 
-    output, errors = source_dump(dump_to_load)
-
-    puts_info
-    puts_info output.join("\n")
+    puts_info output.join($/) if output.any?
 
     if errors.empty?
-      puts_info "sourcing completed successfully."
+      puts_info 'Successfully sourced the dump.'
       true
     else
-      $stderr.puts "some errors occured while loading the dump #{File.basename(dump_to_load)}:"
-      $stderr.puts errors.join("\n");
+      $stderr.puts "An error occured while loading the dump #{File.basename(dump_file)}"
+      $stderr.puts errors.join($/);
       false
     end
   end
