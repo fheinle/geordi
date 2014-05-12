@@ -23,11 +23,20 @@ class DumpLoader
     end
   end
 
+  def source_command
+    require 'yaml'
+
+    config = YAML::load(ERB.new(File.read('config/database.yml')).result)
+    db_adapter = config['development']['adapter']
+
+    (db_adapter =~ /postgres/) ? '\i ' : '\. ' # (mysql)
+  end
+
   def source_dump(dump)
     require 'open3'
     output_buffer = StringIO.new
     Open3.popen3(db_console_command) do |stdin, stdout, stderr|
-      stdin.puts("source #{dump};")
+      stdin.puts(source_command + dump + ';')
       stdin.close
       output_buffer.write stdout.read
       output_buffer.write stderr.read
@@ -55,7 +64,6 @@ class DumpLoader
       choose_dump_file
     end
   end
-
 
   def puts_info(msg = "")
     puts msg if @verbose
