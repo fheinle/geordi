@@ -34,6 +34,7 @@ class DumpLoader
   alias_method :mysql2_command, :mysql_command
   
   def postgresql_command
+    ENV['PGPASSWORD'] = config['password']
     command = 'pg_restore --no-owner --clean'
     command << ' --username=' << config['username']
     command << ' --host=' << config['host']
