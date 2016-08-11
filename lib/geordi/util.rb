@@ -79,7 +79,7 @@ module Geordi
         old_kernels = %x{
           dpkg --list |          # List installed packages
             grep linux-image |   # Filter
-            awk '{ print $2 }' | # Print second field
+            awk '{ print $2 }' | # Print second field (= package name)
             sort -V |            # Sort ASC (version number mode)
             sed -n '/'#{ current_kernel }'/q;p' # Cut list at current kernel
         }.split("\n")
