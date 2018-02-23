@@ -31,8 +31,6 @@ def delete_dumps(dump_directory = nil)
     success 'No dumps to delete' if deletable_dumps.empty?
     exit 0
   end
-  # in case of duplicate files because of symlinks etc.
-  deletable_dumps.map! { |d| File.realdirpath(d) }
   deletable_dumps.uniq!
   note 'The following dumps can be deleted:'
   puts
