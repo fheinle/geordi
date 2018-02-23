@@ -43,7 +43,7 @@ module Geordi
       deletable_dbs = confirm_deletion('mysql', database_list)
       return if deletable_dbs.nil?
       deletable_dbs.each do |db|
-        `#{mysql_command} -e 'DROP DATABASE \'#{db}\';'`
+        `#{mysql_command} -e 'DROP DATABASE \`#{db}\`;'`
       end
     end
 
