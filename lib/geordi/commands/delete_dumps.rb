@@ -21,11 +21,12 @@ def delete_dumps(dump_directory = nil)
     dump_directories = [dump_directory]
   end
   dump_directories.each do |d|
-    unless File.directory? File.realdirpath(d)
-      warn "Directory #{d} does not exist"
+    d2 = File.expand_path(d)
+    unless File.directory? File.realdirpath(d2)
+      warn "Directory #{d2} does not exist"
       next
     end
-    deletable_dumps.concat(Dir.glob("#{d}/**/*.dump"))
+    deletable_dumps.concat(Dir.glob("#{d2}/**/*.dump"))
   end
   if deletable_dumps.empty?
     success 'No dumps to delete' if deletable_dumps.empty?
